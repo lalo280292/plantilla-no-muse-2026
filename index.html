@@ -34,21 +34,19 @@
         lugar:       "Tepoztlán, Morelos",
         descripcion: "¡Te esperamos para celebrar nuestra boda!",
       },
-      // Invitado cuando el link no trae ?invitado=...&pases=...  (crea links con generador-links.html)
-      invitado: { nombre: "Familia Ramírez Ortega", pases: 4 },
-
-      // WhatsApp: código de país + número, solo dígitos ("" = sin botón de WhatsApp)
-      whatsapp:        "5215512345678",
-      mensajeWhatsapp: "¡Hola! Soy {invitado} y quiero confirmar mi asistencia a la boda de Sofía & Mateo.",
-
-      formulario: {
-        enviarA:      "whatsapp",   // "whatsapp" = abre WhatsApp con la respuesta · "prueba" = solo dice gracias
-        googleSheets: "",           // opcional: URL de Google Apps Script para guardar respuestas
-      },
+      // El invitado, sus pases y la confirmación ahora vienen de api.php con el link ?id=XXXXX
+      // (módulos "Pase de entrada" y "Confirma tu asistencia"). La música está en BOTÓN DE MÚSICA (abajo).
       portada: { cadaSegundos: 5, transicionSegundos: 2 },   // carrusel de fotos de la portada
       sobre:   { velocidad: 1 },                            // 1 normal · 1.5 más rápido · 0.7 más lento
-      musica:  { archivo: "", volumen: 0.5 },               // ej. "musica/cancion.mp3" ("" = sin música)
     };
+
+    // Muestra un módulo que empieza oculto (pase de entrada / confirmación) cuando llegan sus datos
+    function mostrarModulo(id) {
+      const modulo = document.getElementById(id);
+      if (!modulo || !modulo.hidden) return;
+      modulo.hidden = false;
+      if (window.ScrollTrigger) ScrollTrigger.refresh();
+    }
   </script>
 
   <link rel="stylesheet" href="css/invitacion.css">
@@ -424,17 +422,19 @@
         <img class="divisor" src="tematica/divisor.png" alt="" data-anim="linea">
       </header>
       <p class="texto" data-anim>Algunos de nuestros momentos favoritos</p>
-      <div class="galeria" data-galeria data-escalonar>
-        <button class="galeria__item" type="button" data-anim><img src="fotos/galeria-01.jpg" alt="" loading="lazy"></button>
-        <button class="galeria__item" type="button" data-anim><img src="fotos/galeria-02.jpg" alt="" loading="lazy"></button>
-        <button class="galeria__item" type="button" data-anim><img src="fotos/galeria-03.jpg" alt="" loading="lazy"></button>
-        <button class="galeria__item" type="button" data-anim><img src="fotos/galeria-04.jpg" alt="" loading="lazy"></button>
-        <button class="galeria__item" type="button" data-anim><img src="fotos/galeria-05.jpg" alt="" loading="lazy"></button>
-        <button class="galeria__item" type="button" data-anim><img src="fotos/galeria-06.jpg" alt="" loading="lazy"></button>
-        <button class="galeria__item" type="button" data-anim><img src="fotos/galeria-07.jpg" alt="" loading="lazy"></button>
-        <button class="galeria__item" type="button" data-anim><img src="fotos/galeria-08.jpg" alt="" loading="lazy"></button>
-        <button class="galeria__item" type="button" data-anim><img src="fotos/galeria-09.jpg" alt="" loading="lazy"></button>
-        <button class="galeria__item" type="button" data-anim><img src="fotos/galeria-10.jpg" alt="" loading="lazy"></button>
+      <!-- 3 columnas: class="tall" = ocupa 2 filas · class="wide" = ocupa 2 columnas.
+           La pantalla completa (#fullscreen) y su código están al final, antes de los <script>. -->
+      <div class="gallery-marco" data-anim>
+        <div class="gallery">
+          <img src="fotos/galeria-01.jpg" alt="" loading="lazy">
+          <img src="fotos/galeria-02.jpg" alt="" loading="lazy">
+          <img src="fotos/galeria-03.jpg" alt="" loading="lazy">
+          <img src="fotos/galeria-04.jpg" alt="" loading="lazy" class="tall">
+          <img src="fotos/galeria-05.jpg" alt="" loading="lazy" class="tall">
+          <img src="fotos/galeria-08.jpg" alt="" loading="lazy" class="tall">
+          <img src="fotos/galeria-07.jpg" alt="" loading="lazy">
+          <img src="fotos/galeria-06.jpg" alt="" loading="lazy" class="wide">
+        </div>
       </div>
     </div>
   </section>
@@ -566,10 +566,10 @@
     </div>
   </section>
 
-  <!-- ============================ PASE DE ENTRADA ============================ -->
-  <!-- El nombre y los pases vienen del link del invitado o de AJUSTES.invitado.
-       {pases} se cambia por el número; data-uno es el texto cuando es 1 pase. -->
-  <section class="modulo" id="invitados" data-animacion="subir">
+  <!-- ============================ PASE DE ENTRADA (datos del invitado) ============================ -->
+  <!-- Muestra los datos del invitado de invitados.json (por medio de api.php) según el link ?id=XXXXX.
+       Cada dato se oculta solo si no está capturado; el módulo completo se oculta si el link no trae un id válido. -->
+  <section class="modulo" id="invitados" data-animacion="subir" hidden>
     <img class="adorno" src="tematica/hoja-izquierda.png" alt="" style="--x:-7%; --y:4%" data-anim="hoja-izquierda">
     <img class="adorno" src="tematica/hoja-derecha.png" alt="" style="--derecha:-7%; --y:4%" data-anim="hoja-derecha">
     <div class="contenedor">
@@ -577,89 +577,624 @@
         <h2 class="titulo" data-anim>Pase de entrada</h2>
         <img class="divisor" src="tematica/divisor.png" alt="" data-anim="linea">
       </header>
-      <div class="pase" data-anim>
+
+      <div class="pase pase-invitado" data-anim>
         <span class="icono-circulo"><img src="iconos/personas.png" alt=""></span>
-        <p class="etiqueta">Esta invitación es para</p>
-        <p class="pase__nombre" data-invitado-nombre></p>
+
+        <div id="box-Familia">
+          <p class="etiqueta">Esta invitación es para</p>
+          <p class="pase__nombre" id="val-Familia"></p>
+        </div>
+
         <span class="pase__linea"></span>
-        <p class="pase__pases" data-invitado-pases data-uno="Hemos reservado <b>1</b> lugar en su honor">Hemos reservado <b>{pases}</b> lugares en su honor</p>
+
+        <p class="pase__pases" id="box-Invitados" data-uno="Hemos reservado <b>1</b> lugar en su honor">Hemos reservado <b>{pases}</b> lugares en su honor</p>
+
+        <ul class="pase-desglose" id="box-Desglose">
+          <li id="box-Adultos"><b id="val-Adultos"></b><span>Adultos</span></li>
+          <li id="box-Adolescentes"><b id="val-Adolescentes"></b><span>Adolescentes</span></li>
+          <li id="box-Ninos"><b id="val-Ninos"></b><span>Niños</span></li>
+        </ul>
+
+        <div class="pase-nombres" id="box-Nombres">
+          <p class="etiqueta">Invitados</p>
+          <p class="pase-nombres__lista" id="val-Nombres"></p>
+        </div>
+
+        <div class="pase-mesa" id="box-Mesa">
+          <span class="etiqueta">Mesa</span>
+          <span class="pase-mesa__numero" id="val-Mesa"></span>
+        </div>
       </div>
-      <p class="nota nota--icono" data-anim>
-        <img class="icono-linea" src="iconos/ninos.png" alt=""><span>Con cariño, este evento es solo para adultos.</span>
-      </p>
     </div>
+
+    <style>
+      .pase-invitado .icono-circulo { margin-bottom: 16px; }
+      .pase-desglose {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 6px 26px;
+        margin: 20px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .pase-desglose li { display: grid; justify-items: center; line-height: 1.1; }
+      .pase-desglose b {
+        font-family: var(--fuente-texto);
+        font-size: 2rem;
+        font-weight: 500;
+        color: var(--color-acento-oscuro);
+        font-variant-numeric: lining-nums;
+      }
+      .pase-desglose span {
+        font-family: var(--fuente-detalles);
+        font-size: .62rem;
+        font-weight: 600;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+        color: var(--color-texto-suave);
+      }
+      .pase-nombres { margin-top: 24px; }
+      .pase-nombres__lista {
+        margin: 6px 0 0;
+        font-style: italic;
+        font-size: 1.2rem;
+        line-height: 1.45;
+        white-space: pre-line;
+        overflow-wrap: anywhere;
+      }
+      .pase-mesa {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 24px;
+        padding: 6px 8px 6px 20px;
+        border: 1px solid var(--color-acento-claro);
+        border-radius: 999px;
+      }
+      .pase-mesa__numero {
+        display: grid;
+        place-items: center;
+        min-width: 44px;
+        height: 44px;
+        padding: 0 12px;
+        border-radius: 999px;
+        background: var(--color-acento);
+        color: #fff;
+        font-family: var(--fuente-detalles);
+        font-size: 1.05rem;
+        font-weight: 600;
+      }
+    </style>
+
+    <script>
+    (function () {
+      const API_URL = 'api.php';
+
+      function iniciar() {
+        const id = new URLSearchParams(window.location.search).get('id');
+        if (!id) return;
+
+        // La misma petición la reutiliza la confirmación (una sola llamada a api.php)
+        window.__datosInvitado = window.__datosInvitado ||
+          fetch(`${API_URL}?accion=invitado&id=${encodeURIComponent(id)}`, { cache: 'no-store' }).then(r => r.json());
+
+        window.__datosInvitado
+          .then(data => {
+            const r = data && data.ok ? data.invitado : null;
+            if (!r) return;
+
+            const n = valor => parseInt(valor, 10) || 0;
+            const texto = valor => String(valor ?? '').trim();
+            const caja = nombre => document.getElementById('box-' + nombre);
+            const poner = (nombre, valor) => { document.getElementById('val-' + nombre).textContent = valor; };
+
+            const adultos = n(r.adultos), adolescentes = n(r.adolescentes), ninos = n(r.ninos);
+            // Si no capturaron el total, se calcula con el desglose
+            const total = n(r.total) || (adultos + adolescentes + ninos);
+            let mostrados = 0;
+
+            // Familia o nombre
+            const familia = texto(r.familia);
+            caja('Familia').hidden = !familia;
+            if (familia) { poner('Familia', familia); mostrados++; }
+
+            // Lugares reservados ({pases}; data-uno cuando es 1)
+            const pases = caja('Invitados');
+            pases.hidden = !total;
+            if (total) {
+              pases.innerHTML = (total === 1 ? pases.dataset.uno : pases.innerHTML).replace('{pases}', total);
+              mostrados++;
+            }
+
+            // Desglose: solo si hay más de un tipo de invitado (si todos son adultos, basta con el total)
+            const tipos = { Adultos: adultos, Adolescentes: adolescentes, Ninos: ninos };
+            Object.entries(tipos).forEach(([nombre, cantidad]) => {
+              caja(nombre).hidden = !cantidad;
+              if (cantidad) poner(nombre, cantidad);
+            });
+            caja('Desglose').hidden = Object.values(tipos).filter(Boolean).length < 2;
+
+            // Nombres de los invitados
+            const nombres = texto(r.nombres);
+            caja('Nombres').hidden = !nombres;
+            if (nombres) { poner('Nombres', nombres); mostrados++; }
+
+            // Mesa
+            const mesa = texto(r.mesa);
+            caja('Mesa').hidden = !mesa;
+            if (mesa) { poner('Mesa', mesa); mostrados++; }
+
+            // Con al menos un dato se muestra el módulo (si el código está vacío, no se muestra un pase vacío)
+            if (mostrados) mostrarModulo('invitados');
+          })
+          .catch(err => console.error('Error al cargar el pase:', err));
+      }
+
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+      else iniciar();
+    })();
+    </script>
   </section>
 
-  <!-- ============================ CONFIRMAR ASISTENCIA ============================ -->
-  <!-- El número y mensaje de WhatsApp están en AJUSTES (arriba) -->
-  <section class="modulo" id="confirmar" data-animacion="subir">
+  <!-- ============================ CONFIRMA TU ASISTENCIA (formulario) ============================ -->
+  <!-- Envía la confirmación a confirmados.json y las felicitaciones a firmas.json (por medio de api.php).
+       La invitación debe estar en la misma carpeta que api.php y abrirse con ?id=XXXXX
+       · Formulario abierto  → se muestra el formulario.
+       · Formulario cerrado (control_formulario.html) → se muestra la leyenda de "fecha terminada"
+         (o "tu asistencia ya está confirmada" si el invitado ya había dicho que sí). -->
+  <section class="modulo" id="confirmar" data-animacion="subir" hidden>
+    <img class="adorno" src="tematica/hoja-izquierda.png" alt="" style="--x:-7%; --y:55%" data-anim="hoja-izquierda">
+    <img class="adorno" src="tematica/hoja-derecha.png" alt="" style="--derecha:-7%; --y:55%" data-anim="hoja-derecha">
     <div class="contenedor">
       <header class="encabezado">
         <span class="icono-circulo" data-anim><img src="iconos/check.png" alt=""></span>
         <h2 class="titulo" data-anim>Confirma tu asistencia</h2>
         <img class="divisor" src="tematica/divisor.png" alt="" data-anim="linea">
       </header>
-      <p class="texto" data-anim>Por favor confírmanos antes del <b>1 de marzo de 2027</b>. Tu respuesta nos ayuda a preparar todo con mucho cariño.</p>
-      <div class="botones">
-        <a class="boton" href="#formulario" data-anim="latido">
-          <img class="boton__icono" src="iconos/pluma.png" alt=""><span>Ir al formulario</span>
-        </a>
-        <a class="boton boton--borde" data-confirmar-whatsapp target="_blank" rel="noopener" data-anim>
-          <img class="boton__icono" src="iconos/whatsapp.png" alt=""><span>Confirmar por WhatsApp</span>
-        </a>
-      </div>
-    </div>
-  </section>
 
-  <!-- ============================ FORMULARIO DE CONFIRMACIÓN ============================ -->
-  <!-- A dónde se envía: AJUSTES.formulario (arriba). Teléfono y mensaje son opcionales: borra su <label> si no los quieres -->
-  <section class="modulo" id="formulario" data-animacion="subir">
-    <img class="adorno" src="tematica/hoja-izquierda.png" alt="" style="--x:-7%; --y:55%" data-anim="hoja-izquierda">
-    <img class="adorno" src="tematica/hoja-derecha.png" alt="" style="--derecha:-7%; --y:55%" data-anim="hoja-derecha">
-    <div class="contenedor">
-      <header class="encabezado">
-        <h2 class="titulo" data-anim>Formulario</h2>
-        <img class="divisor" src="tematica/divisor.png" alt="" data-anim="linea">
-      </header>
-      <p class="texto" data-anim>Llena tus datos y presiona enviar.</p>
+      <!-- ===== FORMULARIO ABIERTO ===== -->
+      <div id="rsvpAbierto" hidden>
+        <p class="texto" data-anim>Por favor confírmanos antes del <b>1 de marzo de 2027</b>. Tu respuesta nos ayuda a preparar todo con mucho cariño.</p>
 
-      <form class="formulario tarjeta" id="form-confirmacion" novalidate data-anim>
-        <label class="campo">
-          <span>Nombre completo</span>
-          <input name="nombre" type="text" autocomplete="name" required>
-        </label>
-        <fieldset class="campo">
-          <legend>¿Nos acompañarás?</legend>
-          <div class="opciones">
-            <label class="opcion"><input type="radio" name="asistencia" value="si" checked><span>¡Sí, ahí estaré!</span></label>
-            <label class="opcion"><input type="radio" name="asistencia" value="no"><span>Lo siento, no podré ir</span></label>
+        <form class="rsvp" id="rsvpForm" novalidate data-anim>
+          <p class="rsvp__aviso" id="rsvpAviso" hidden></p>
+
+          <!-- Solo se pide si la invitación no tiene "Familia o Nombre" capturado en el registro -->
+          <div class="rsvp__campo" id="rsvpCampoNombre" hidden>
+            <label class="etiqueta" for="rsvpNombre">Tu nombre o familia</label>
+            <input class="rsvp__linea" type="text" name="nombre" id="rsvpNombre" maxlength="150" autocomplete="name" placeholder="Escribe tu nombre">
           </div>
-        </fieldset>
-        <label class="campo" data-campo-personas>
-          <span>Número de asistentes</span>
-          <select name="personas"></select>
-        </label>
-        <label class="campo">
-          <span>Teléfono (opcional)</span>
-          <input name="telefono" type="tel" autocomplete="tel">
-        </label>
-        <label class="campo">
-          <span>Mensaje para los novios (opcional)</span>
-          <textarea name="mensaje" rows="3"></textarea>
-        </label>
-        <p class="formulario__error" data-form-error hidden></p>
-        <button class="boton boton--ancho" type="submit">
-          <img class="boton__icono" src="iconos/sobre.png" alt=""><span>Enviar confirmación</span>
-        </button>
-      </form>
 
-      <div class="formulario__gracias tarjeta" data-form-gracias hidden>
-        <span class="icono-circulo"><img src="iconos/corazon.png" alt=""></span>
-        <p class="texto">¡Gracias por confirmar! Nos hace muy felices compartir este día contigo.</p>
+          <input type="hidden" name="id" id="rsvpId">
+          <input type="hidden" name="mesa" id="rsvpMesa">
+
+          <fieldset class="rsvp__campo">
+            <legend class="etiqueta">¿Nos acompañarás?</legend>
+            <div class="rsvp__opciones">
+              <label class="rsvp__opcion"><input type="radio" name="asistira" value="Si"><span>¡Sí, ahí estaré!</span></label>
+              <label class="rsvp__opcion"><input type="radio" name="asistira" value="No"><span>No podré asistir</span></label>
+            </div>
+          </fieldset>
+
+          <div class="rsvp__detalles" id="rsvpDetalles" hidden>
+            <!-- Contadores: cada uno va de 0 al máximo asignado en el registro (se ocultan si no tienen lugares) -->
+            <div class="rsvp__cuentas">
+              <div class="rsvp-cuenta" data-cuenta="cantidad_adultos" hidden>
+                <span class="etiqueta">Adultos</span>
+                <div class="rsvp-cuenta__control">
+                  <button type="button" data-paso="-1" aria-label="Menos adultos">−</button>
+                  <output aria-live="polite">0</output>
+                  <button type="button" data-paso="1" aria-label="Más adultos">+</button>
+                </div>
+                <input type="hidden" name="cantidad_adultos" value="0">
+              </div>
+              <div class="rsvp-cuenta" data-cuenta="cantidad_adolescentes" hidden>
+                <span class="etiqueta">Adolescentes</span>
+                <div class="rsvp-cuenta__control">
+                  <button type="button" data-paso="-1" aria-label="Menos adolescentes">−</button>
+                  <output aria-live="polite">0</output>
+                  <button type="button" data-paso="1" aria-label="Más adolescentes">+</button>
+                </div>
+                <input type="hidden" name="cantidad_adolescentes" value="0">
+              </div>
+              <div class="rsvp-cuenta" data-cuenta="cantidad_ninos" hidden>
+                <span class="etiqueta">Niños</span>
+                <div class="rsvp-cuenta__control">
+                  <button type="button" data-paso="-1" aria-label="Menos niños">−</button>
+                  <output aria-live="polite">0</output>
+                  <button type="button" data-paso="1" aria-label="Más niños">+</button>
+                </div>
+                <input type="hidden" name="cantidad_ninos" value="0">
+              </div>
+              <!-- Solo si la invitación no tiene desglose (adultos / adolescentes / niños) -->
+              <div class="rsvp-cuenta" data-cuenta="cantidad_personas" hidden>
+                <span class="etiqueta">Personas</span>
+                <div class="rsvp-cuenta__control">
+                  <button type="button" data-paso="-1" aria-label="Menos personas">−</button>
+                  <output aria-live="polite">0</output>
+                  <button type="button" data-paso="1" aria-label="Más personas">+</button>
+                </div>
+                <input type="hidden" name="cantidad_personas" value="0">
+              </div>
+            </div>
+            <p class="rsvp__total" id="rsvpTotal" hidden></p>
+
+            <div class="rsvp__campo">
+              <label class="etiqueta" for="rsvpNombres">¿Quiénes asistirán?</label>
+              <textarea class="rsvp__linea" name="nombres_personas" id="rsvpNombres" rows="1" maxlength="1000" placeholder="Escribe sus nombres"></textarea>
+            </div>
+          </div>
+
+          <div class="rsvp__campo">
+            <label class="etiqueta" for="rsvpMensaje">Un mensaje para los novios</label>
+            <textarea class="rsvp__linea" name="felicitaciones" id="rsvpMensaje" rows="1" maxlength="2000" placeholder="Opcional"></textarea>
+          </div>
+
+          <p class="rsvp__error" id="rsvpError" role="alert" hidden></p>
+
+          <button class="boton boton--ancho" type="submit" id="rsvpEnviar">
+            <img class="boton__icono" src="iconos/sobre.png" alt=""><span>Enviar confirmación</span>
+          </button>
+        </form>
+
+        <div class="rsvp__gracias" id="rsvpGracias" hidden>
+          <span class="icono-circulo"><img src="iconos/corazon.png" alt=""></span>
+          <p class="texto" id="rsvpGraciasTexto"></p>
+        </div>
+      </div>
+
+      <!-- ===== FORMULARIO CERRADO ===== -->
+      <div class="rsvp__cerrado" id="rsvpCerrado" hidden data-anim>
+        <p>Lo sentimos, la fecha de confirmación ha terminado.</p>
+        <p>Si deseas asistir, puedes ponerte en contacto con nosotros.</p>
+      </div>
+
+      <!-- ===== CERRADO, PERO EL INVITADO YA HABÍA CONFIRMADO QUE SÍ ===== -->
+      <div class="rsvp__cerrado" id="rsvpYaConfirmado" hidden data-anim>
+        <p>Tu asistencia ya está confirmada. ¡Te esperamos!</p>
+        <div class="botones">
+          <a class="boton" id="rsvpLinkPase" href="#">
+            <img class="boton__icono" src="iconos/check.png" alt=""><span>Ver mi pase</span>
+          </a>
+        </div>
       </div>
     </div>
-  </section>
 
+    <style>
+      .rsvp { display: grid; gap: 34px; max-width: 480px; margin: 12px auto 0; }
+      .rsvp__campo { display: grid; gap: 10px; min-width: 0; margin: 0; padding: 0; border: 0; }
+      .rsvp__campo > .etiqueta { padding: 0; justify-self: center; }
+
+      /* Campos de texto: solo una línea, sin caja */
+      .rsvp__linea {
+        width: 100%;
+        padding: 6px 4px 8px;
+        border: 0;
+        border-bottom: 1px solid var(--color-acento-claro);
+        border-radius: 0;
+        background: transparent;
+        color: var(--color-texto);
+        font: inherit;
+        font-size: 1.25rem;
+        line-height: 1.4;
+        text-align: center;
+        resize: none;
+        overflow: hidden;
+        outline: none;
+        transition: border-color .3s, box-shadow .3s;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+      .rsvp__linea::placeholder { color: var(--color-texto-suave); opacity: .55; font-style: italic; }
+      .rsvp__linea:focus { border-bottom-color: var(--color-acento); box-shadow: 0 1px 0 var(--color-acento); }
+      .rsvp__campo.con-error .rsvp__linea { border-bottom-color: #b4553f; }
+
+      /* Sí / No */
+      .rsvp__opciones { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .rsvp__opcion { position: relative; }
+      .rsvp__opcion input { position: absolute; opacity: 0; pointer-events: none; }
+      .rsvp__opcion span {
+        display: grid;
+        place-items: center;
+        height: 100%;
+        min-height: 52px;
+        padding: 10px 12px;
+        border: 1px solid var(--color-acento-claro);
+        border-radius: 999px;
+        font-size: 1.12rem;
+        line-height: 1.2;
+        text-align: center;
+        cursor: pointer;
+        transition: background-color .3s, color .3s, border-color .3s;
+      }
+      .rsvp__opcion input:checked + span { background: var(--color-acento); border-color: var(--color-acento); color: #fff; }
+      .rsvp__opcion input:focus-visible + span { outline: 2px solid var(--color-acento-claro); outline-offset: 3px; }
+
+      /* Contadores − 2 + */
+      .rsvp__detalles { display: grid; gap: 34px; }
+      .rsvp__cuentas { display: flex; flex-wrap: wrap; justify-content: center; gap: 22px 34px; }
+      .rsvp-cuenta { display: grid; justify-items: center; gap: 8px; }
+      .rsvp-cuenta__control { display: flex; align-items: center; gap: 12px; }
+      .rsvp-cuenta output {
+        min-width: 1.6ch;
+        font-family: var(--fuente-texto);
+        font-size: 2.3rem;
+        line-height: 1;
+        text-align: center;
+        color: var(--color-titulos);
+        font-variant-numeric: lining-nums;
+      }
+      .rsvp-cuenta button {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        padding: 0 0 2px;
+        border: 1px solid var(--color-acento-claro);
+        border-radius: 50%;
+        background: transparent;
+        color: var(--color-acento);
+        font-family: var(--fuente-detalles);
+        font-size: 1.15rem;
+        line-height: 1;
+        cursor: pointer;
+        transition: background-color .25s, color .25s, opacity .25s;
+      }
+      .rsvp-cuenta button:hover:not(:disabled) { background: var(--color-acento); color: #fff; }
+      .rsvp-cuenta button:disabled { opacity: .3; cursor: default; }
+      .rsvp__total { margin: -14px 0 0; font-style: italic; color: var(--color-texto-suave); }
+      .rsvp__total b { font-style: normal; color: var(--color-acento-oscuro); font-variant-numeric: lining-nums; }
+
+      .rsvp__aviso, .rsvp__error { margin: 0; font-style: italic; text-align: center; }
+      .rsvp__aviso { color: var(--color-acento-oscuro); }
+      .rsvp__error { color: #b4553f; }
+      .rsvp .boton:disabled { opacity: .7; cursor: wait; }
+      .rsvp .boton.con-error { background: #915858; border-color: #915858; }
+      .rsvp__gracias { max-width: 480px; margin: 12px auto 0; }
+
+      /* Leyendas cuando el formulario está cerrado */
+      .rsvp__cerrado {
+        max-width: 460px;
+        margin: 0 auto;
+        padding: 26px 0;
+        border-top: 1px solid var(--color-arena);
+        border-bottom: 1px solid var(--color-arena);
+        font-style: italic;
+        font-size: 1.25rem;
+      }
+      .rsvp__cerrado p:last-of-type { margin-bottom: 0; }
+      .rsvp__cerrado .botones { margin-top: 18px; }
+    </style>
+
+    <script>
+    (function () {
+      const API_URL = 'api.php';
+      const MAX_SIN_ASIGNAR = 10; // si la invitación no tiene cantidad, se puede elegir de 1 a 10 (igual que config.php)
+      const DESGLOSE = ['cantidad_adultos', 'cantidad_adolescentes', 'cantidad_ninos'];
+      const $ = id => document.getElementById(id);
+
+      function iniciar() {
+        const id = new URLSearchParams(window.location.search).get('id');
+        if (!id) return;
+
+        const form = $('rsvpForm');
+        const btnEnviar = $('rsvpEnviar');
+        const textoBoton = btnEnviar.querySelector('span');
+
+        window.__datosInvitado = window.__datosInvitado ||
+          fetch(`${API_URL}?accion=invitado&id=${encodeURIComponent(id)}`, { cache: 'no-store' }).then(r => r.json());
+
+        window.__datosInvitado
+          .then(data => {
+            if (!data || !data.ok) { console.warn('Invitación no encontrada:', id); return; }
+            const confirmacion = data.confirmacion;
+
+            if (!data.formVisible) {
+              // Cerrado: si ya había confirmado que sí, se le recuerda; si no, la leyenda de fecha terminada
+              if (confirmacion && confirmacion.asistira === 'Si') {
+                $('rsvpLinkPase').href = 'paseqr.html?id=' + encodeURIComponent(id);
+                $('rsvpYaConfirmado').hidden = false;
+              } else {
+                $('rsvpCerrado').hidden = false;
+              }
+            } else {
+              $('rsvpId').value = id;
+              prellenar(data.invitado, confirmacion);
+              $('rsvpAbierto').hidden = false;
+            }
+            mostrarModulo('confirmar');
+            form.querySelectorAll('textarea').forEach(ajustarAlto);
+          })
+          .catch(err => console.error('Error al cargar la invitación:', err));
+
+        // ---------- Contadores ----------
+        const cuentas = {};
+        document.querySelectorAll('[data-cuenta]').forEach(caja => {
+          const c = {
+            caja,
+            input: caja.querySelector('input'),
+            salida: caja.querySelector('output'),
+            menos: caja.querySelector('[data-paso="-1"]'),
+            mas: caja.querySelector('[data-paso="1"]'),
+            min: 0,
+            max: 0,
+          };
+          cuentas[caja.dataset.cuenta] = c;
+          caja.addEventListener('click', e => {
+            const b = e.target.closest('[data-paso]');
+            if (b) { fijar(caja.dataset.cuenta, valor(caja.dataset.cuenta) + Number(b.dataset.paso)); pintarTotal(); }
+          });
+        });
+
+        const valor = nombre => parseInt(cuentas[nombre].input.value, 10) || 0;
+
+        function fijar(nombre, n) {
+          const c = cuentas[nombre];
+          n = Math.max(c.min, Math.min(c.max, parseInt(n, 10) || 0));
+          c.input.value = n;
+          c.salida.textContent = n;
+          c.menos.disabled = n <= c.min;
+          c.mas.disabled = n >= c.max;
+        }
+
+        function configurar(nombre, max, min, inicial) {
+          const c = cuentas[nombre];
+          c.max = Math.max(0, parseInt(max, 10) || 0);
+          c.min = min;
+          c.caja.hidden = c.max <= 0;
+          fijar(nombre, c.max > 0 ? (inicial ?? c.max) : 0);
+        }
+
+        const hayDesglose = () => DESGLOSE.some(n => cuentas[n].max > 0);
+        const suma = () => DESGLOSE.reduce((acc, n) => acc + valor(n), 0);
+
+        // Con desglose, el total se calcula solo
+        function pintarTotal() {
+          const total = $('rsvpTotal');
+          total.hidden = !hayDesglose();
+          if (!hayDesglose()) return;
+          const s = suma();
+          fijar('cantidad_personas', s);
+          total.innerHTML = `Total: <b>${s}</b> ${s === 1 ? 'persona' : 'personas'}`;
+        }
+
+        function prellenar(inv, confirmacion) {
+          // Si en el registro no se escribió "Familia o Nombre", se le pide al invitado
+          const sinNombre = !String(inv.familia || '').trim();
+          $('rsvpCampoNombre').hidden = !sinNombre;
+          $('rsvpNombre').value = inv.familia || (confirmacion && confirmacion.familia) || '';
+          $('rsvpMesa').value = inv.mesa || '';
+
+          const n = v => parseInt(v, 10) || 0;
+          configurar('cantidad_adultos', inv.adultos, 0);
+          configurar('cantidad_adolescentes', inv.adolescentes, 0);
+          configurar('cantidad_ninos', inv.ninos, 0);
+
+          const total = Math.max(n(inv.total), n(inv.adultos) + n(inv.adolescentes) + n(inv.ninos));
+          if (hayDesglose()) {
+            configurar('cantidad_personas', total, 0);
+            cuentas.cantidad_personas.caja.hidden = true; // el total sale de la suma
+          } else if (total === 0) {
+            configurar('cantidad_personas', MAX_SIN_ASIGNAR, 1, 1); // sin cantidad capturada: de 1 a 10
+          } else {
+            configurar('cantidad_personas', total, 1);
+          }
+
+          // Si ya había confirmado, se muestran sus respuestas para que pueda corregirlas
+          if (confirmacion) {
+            const aviso = $('rsvpAviso');
+            aviso.textContent = confirmacion.asistira === 'Si'
+              ? '✓ Ya confirmaste tu asistencia. Si necesitas cambiar algo, envía el formulario de nuevo.'
+              : 'Nos indicaste que no podrás asistir. Si cambias de opinión, envía el formulario de nuevo.';
+            aviso.hidden = false;
+            textoBoton.textContent = 'Actualizar confirmación';
+
+            const radio = form.querySelector(`input[name="asistira"][value="${confirmacion.asistira}"]`);
+            if (radio) radio.checked = true;
+            if (confirmacion.asistira === 'Si') {
+              fijar('cantidad_adultos', confirmacion.adultos);
+              fijar('cantidad_adolescentes', confirmacion.adolescentes);
+              fijar('cantidad_ninos', confirmacion.ninos);
+              if (!hayDesglose()) fijar('cantidad_personas', confirmacion.cantidad);
+              $('rsvpNombres').value = confirmacion.nombres || '';
+            }
+          }
+          pintarTotal();
+          mostrarDetalles();
+        }
+
+        // ---------- Sí / No ----------
+        function mostrarDetalles() {
+          const asistira = form.querySelector('input[name="asistira"]:checked');
+          $('rsvpDetalles').hidden = !asistira || asistira.value !== 'Si';
+          form.querySelectorAll('textarea').forEach(ajustarAlto);
+        }
+        form.addEventListener('change', e => {
+          if (e.target.name !== 'asistira') return;
+          mostrarDetalles();
+          ocultarError();
+          if (window.ScrollTrigger) ScrollTrigger.refresh(); // el alto del módulo cambió
+        });
+
+        // Las áreas de texto crecen con lo que se escribe (sin caja ni barra)
+        function ajustarAlto(t) {
+          if (!t.offsetParent) return; // oculta: se ajusta cuando se muestre
+          t.style.height = 'auto';
+          t.style.height = t.scrollHeight + 'px';
+        }
+        form.addEventListener('input', e => {
+          if (e.target.tagName === 'TEXTAREA') ajustarAlto(e.target);
+          if (e.target.id === 'rsvpNombre') $('rsvpCampoNombre').classList.remove('con-error');
+        });
+
+        // ---------- Mensajes ----------
+        function mostrarError(texto) {
+          const error = $('rsvpError');
+          error.textContent = texto;
+          error.hidden = false;
+        }
+        function ocultarError() { $('rsvpError').hidden = true; }
+
+        // ---------- Envío ----------
+        form.addEventListener('submit', function (e) {
+          e.preventDefault();
+          ocultarError();
+
+          const asistiraVal = form.querySelector('input[name="asistira"]:checked')?.value;
+          if (!asistiraVal) return mostrarError('Por favor, indícanos si asistirás.');
+
+          const campoNombre = $('rsvpNombre');
+          if (!$('rsvpCampoNombre').hidden && !campoNombre.value.trim()) {
+            $('rsvpCampoNombre').classList.add('con-error');
+            campoNombre.focus();
+            return mostrarError('Por favor, escribe tu nombre o el de tu familia.');
+          }
+
+          if (asistiraVal === 'Si') {
+            const personas = hayDesglose() ? suma() : valor('cantidad_personas');
+            if (personas < 1) return mostrarError('Indícanos cuántas personas asistirán.');
+          }
+
+          textoBoton.textContent = 'Enviando…';
+          btnEnviar.classList.remove('con-error');
+          btnEnviar.disabled = true;
+
+          fetch(`${API_URL}?accion=confirmar`, { method: 'POST', body: new FormData(form) })
+            .then(res => res.json().catch(() => ({ ok: false, error: 'Respuesta inválida del servidor.' })))
+            .then(data => {
+              if (!data.ok) throw new Error(data.error || 'No se pudo registrar la confirmación.');
+
+              form.hidden = true;
+              form.previousElementSibling.hidden = true; // el texto "Por favor confírmanos..."
+              $('rsvpGraciasTexto').textContent = asistiraVal === 'Si'
+                ? '¡Gracias por confirmar! Nos hace muy felices compartir este día contigo. Te llevamos a tu pase de entrada…'
+                : 'Gracias por avisarnos. Te extrañaremos y te tendremos presente en este día tan especial.';
+              $('rsvpGracias').hidden = false;
+              $('rsvpGracias').scrollIntoView({ behavior: 'smooth', block: 'center' });
+              if (window.ScrollTrigger) ScrollTrigger.refresh();
+
+              // Redirección al pase QR si la respuesta es Sí
+              if (asistiraVal === 'Si') {
+                setTimeout(() => { window.location.href = 'paseqr.html?id=' + encodeURIComponent(id); }, 2200);
+              }
+            })
+            .catch(err => {
+              console.error(err);
+              mostrarError('No se pudo enviar: ' + err.message);
+              textoBoton.textContent = 'Reintentar';
+              btnEnviar.classList.add('con-error');
+              btnEnviar.disabled = false;
+            });
+        });
+      }
+
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+      else iniciar();
+    })();
+    </script>
+  </section>
   <!-- ============================ FOTO FINAL ============================ -->
   <section class="modulo final" id="final" data-animacion="desenfoque">
     <div class="parallax__marco" data-parallax><img class="parallax__img" src="fotos/final.jpg" alt=""></div>
@@ -678,6 +1213,291 @@
   </footer>
 
 </main>
+
+
+<!-- ============================ GALERÍA: PANTALLA COMPLETA ============================ -->
+<!-- Va fuera de <main> para que siempre cubra toda la pantalla. Las fotos se toman de .gallery (módulo GALERÍA). -->
+<style>
+  .gallery-marco {
+    container-type: inline-size;
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: 125px;
+    grid-auto-rows: calc((100cqw - 16px) / 3 * 1.07); /* misma proporción que 365px / 125px, pero se adapta al ancho */
+    gap: 8px;
+    width: 100%;
+  }
+
+  .gallery img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+
+  .gallery .wide {
+    grid-column: span 2;
+  }
+
+  .gallery .tall {
+    grid-row: span 2;
+  }
+
+  .fullscreen {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+
+  .fullscreen img {
+    max-width: 90%;
+    max-height: 90%;
+    border-radius: 5px;
+  }
+
+  .fullscreen .close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 24px;
+    color: white;
+    cursor: pointer;
+  }
+
+  .fullscreen .arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 36px;
+    color: white;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .fullscreen .arrow.left {
+    left: 20px;
+  }
+
+  .fullscreen .arrow.right {
+    right: 20px;
+  }
+</style>
+
+<div class="fullscreen" id="fullscreen">
+  <span class="close" id="close">&times;</span>
+  <span class="arrow left" id="prev">&#10094;</span>
+  <img src="" alt="Fullscreen Image" id="fullscreen-img">
+  <span class="arrow right" id="next">&#10095;</span>
+</div>
+
+<script>
+(function () {
+  const gallery = document.querySelector('.gallery');
+  if (!gallery) return;
+  const fullscreen = document.getElementById('fullscreen');
+  const fullscreenImg = document.getElementById('fullscreen-img');
+  const closeBtn = document.getElementById('close');
+  const prevBtn = document.getElementById('prev');
+  const nextBtn = document.getElementById('next');
+  let currentIndex = 0;
+
+  const images = Array.from(gallery.querySelectorAll('img'));
+
+  function openFullscreen(index) {
+    currentIndex = index;
+    fullscreenImg.src = images[currentIndex].src;
+    fullscreen.style.display = 'flex';
+    document.documentElement.classList.add('bloqueado'); // la página no se mueve detrás
+  }
+
+  function closeFullscreen() {
+    fullscreen.style.display = 'none';
+    document.documentElement.classList.remove('bloqueado');
+  }
+
+  function showNext() {
+    currentIndex = (currentIndex + 1) % images.length;
+    fullscreenImg.src = images[currentIndex].src;
+  }
+
+  function showPrev() {
+    currentIndex = (currentIndex - 1 + images.length) % images.length;
+    fullscreenImg.src = images[currentIndex].src;
+  }
+
+  images.forEach((img, index) => {
+    img.addEventListener('click', () => openFullscreen(index));
+  });
+
+  closeBtn.addEventListener('click', closeFullscreen);
+  nextBtn.addEventListener('click', showNext);
+  prevBtn.addEventListener('click', showPrev);
+
+  fullscreen.addEventListener('click', (e) => {
+    if (e.target === fullscreen) closeFullscreen();
+  });
+})();
+</script>
+
+
+<!-- ============================ BOTÓN DE MÚSICA ============================ -->
+<!-- Siempre abajo a la izquierda. La canción empieza al tocar el sobre (o con el primer toque si no hay sobre).
+     Para cambiar la canción, cambia el src del <audio>. -->
+<style>
+  #play-pause-button {
+    position: fixed;
+    left: 15px;
+    bottom: calc(15px + env(safe-area-inset-bottom, 0px));
+    z-index: 60; /* debajo del sobre y de la pantalla completa de la galería */
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    cursor: pointer;
+  }
+</style>
+
+<button id="play-pause-button" type="button" aria-label="Música" style="background-color: #ffffff; border-radius: 50%; width: 45px; height: 45px; box-shadow: 2px 2px 2px #333;">
+  <img id="play-pause-icon" src="https://musica.enfoquedigital.com.mx/musica/clave.gif" alt="Play/Pause" width="40" height="40">
+</button>
+
+<audio id="audio-player" src="https://musica.enfoquedigital.com.mx/musica/amarteesunplacer.mp3" loop></audio>
+
+<script>
+(function () {
+  const audioPlayer = document.getElementById("audio-player");
+  const playPauseButton = document.getElementById("play-pause-button");
+  const playPauseIcon = document.getElementById("play-pause-icon");
+  const ICONO_SONANDO = "https://musica.enfoquedigital.com.mx/musica/silencio.gif";
+  const ICONO_PAUSA   = "https://musica.enfoquedigital.com.mx/musica/clave.gif";
+
+  // El icono siempre refleja si la canción suena o no
+  audioPlayer.addEventListener("play",  () => (playPauseIcon.src = ICONO_SONANDO));
+  audioPlayer.addEventListener("pause", () => (playPauseIcon.src = ICONO_PAUSA));
+
+  const reproducir = () => audioPlayer.play().catch(() => {});
+
+  playPauseButton.addEventListener("click", function () {
+    if (audioPlayer.paused) reproducir();
+    else audioPlayer.pause();
+  });
+
+  // Al tocar el sobre empieza la música (se llama dentro del toque para que el celular lo permita)
+  const sobre = document.getElementById("sobre");
+  if (sobre) {
+    sobre.addEventListener("click", reproducir, { once: true });
+    sobre.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") reproducir();
+    });
+  } else {
+    document.addEventListener("pointerdown", (e) => {
+      if (!playPauseButton.contains(e.target)) reproducir();
+    }, { once: true });
+  }
+})();
+</script>
+
+
+<!-- ============================ NOMBRE DEL INVITADO EN EL SOBRE ============================ -->
+<!-- Pone en el sobre la "Familia o Nombre" que viene de api.php (link ?id=XXXXX) -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const id = new URLSearchParams(window.location.search).get("id");
+  if (!id) return;
+  window.__datosInvitado = window.__datosInvitado ||
+    fetch(`api.php?accion=invitado&id=${encodeURIComponent(id)}`, { cache: "no-store" }).then(r => r.json());
+  window.__datosInvitado
+    .then(data => {
+      const familia = data && data.ok && data.invitado ? String(data.invitado.familia || "").trim() : "";
+      if (!familia) return;
+      document.querySelectorAll("[data-invitado-nombre]").forEach(el => {
+        el.textContent = familia;
+        el.hidden = false;
+      });
+      document.querySelectorAll(".sobre__para").forEach(el => (el.hidden = false));
+    })
+    .catch(() => {});
+});
+</script>
+
+
+<!-- ============================ RASTREO DE VISITAS ============================ -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // En vez de usar window.location.href:
+  const currentUrl = new URL(window.location.href);
+  const pageUrl = `${currentUrl.protocol}//${currentUrl.hostname}`;
+
+  // Llamar a ipinfo.io para obtener datos de IP y ubicación
+  fetch('https://ipinfo.io/json?token=a0d9ba3070c518')
+    .then(response => response.json())
+    .then(data => {
+      let lat = null;
+      let lon = null;
+      if (data.loc) {
+        [lat, lon] = data.loc.split(',');
+      }
+
+      // Preparar el objeto con la URL ya “recortada”
+      const visitData = {
+        pageLink: pageUrl,  // <-- Solo dominio
+        ip: data.ip || null,
+        country: data.country || null,
+        region: data.region || null,
+        city: data.city || null,
+        lat: lat || null,
+        lon: lon || null
+      };
+
+      // Enviar datos al servidor
+      fetch('https://enfoquedigital.com.mx/permanente/track.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(visitData)
+      })
+      .then(response => response.text())
+      .then(result => {
+        console.log('Datos enviados:', result);
+      })
+      .catch(error => {
+        console.error('Error al enviar datos:', error);
+      });
+    })
+    .catch(error => {
+      console.error('Error con ipinfo:', error);
+      // Enviar datos básicos sin ubicación
+      const visitData = {
+        pageLink: pageUrl,
+        ip: null,
+        country: null,
+        region: null,
+        city: null,
+        lat: null,
+        lon: null
+      };
+      fetch('https://enfoquedigital.com.mx/permanente/track.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(visitData)
+      });
+    });
+});
+</script>
+
 
 
 <!-- 🔒 No cambiar el orden -->
